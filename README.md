@@ -2,16 +2,36 @@
 
 A production-grade webhook event gateway for Fast-Weigh that verifies Svix signatures, guarantees delivery (idempotency + retries + Dead Letter Queue), enriches events via GraphQL V2, and routes data to downstream systems like ERP, TMS, accounting, and BI.
 
-## Why This Exists
+## Overview
+
+### What It Does
+
+- Authenticates inbound Svix webhooks with signature verification
+- Ensures at-least-once processing with idempotency, retries, and a Dead Letter Queue (DLQ)
+- Enriches events via GraphQL V2 to produce consistent downstream payloads
+- Provides admin replay and observability for recovery and troubleshooting
+
+### Why It Reduces Support
+
+- Fewer tickets for missed or duplicate webhook events
+- Fewer customer-specific integration anti-patterns
+- Faster troubleshooting with centralized gateway logs and metrics
+
+### Why It Increases Adoption
+
+- Makes API and webhook integrations plug-and-play
+- Accelerates Dispatch and POD (Proof of Delivery) integrations across TMS (Transportation Management System), ETA (Estimated Time of Arrival), and accounting workflows
+
+## Why This Gateway Exists
 
 Fast-Weigh webhooks are the fastest path to real-time integrations, but production webhook consumption is difficult:
 
-- missed events during deploys/outages
+- missed events during deploys or outages
 - duplicate deliveries causing double writes
-- no replay controls
-- unclear observability when failures happen
+- limited replay controls
+- unclear observability during failures
 
-This gateway provides a deployable, standardized integration pattern focused on reliability and recovery.
+This gateway provides a deployable, standardized integration pattern focused on reliability, recovery, and consistent downstream data.
 
 ## Key Features
 
@@ -25,7 +45,7 @@ This gateway provides a deployable, standardized integration pattern focused on 
 - Structured logging + Prometheus metrics + OpenTelemetry traces
 - Security controls: rate limiting, IP allowlists, admin API key, TLS guidance
 
-## Implementation Status Against Original Notes
+## Implementation Status
 
 Implemented:
 
@@ -135,12 +155,12 @@ npm install
 cp .env.example .env
 ```
 
-1. Set required values in `.env`:
+3. Set required values in `.env`:
 
 - `FAST_WEIGH_WEBHOOK_SECRET`
 - `FAST_WEIGH_API_KEY`
 
-4. Set Redis connection (`REDIS_URL`) with one option:
+4. Set a Redis connection (`REDIS_URL`) using one option:
 
 Option A: Hosted Redis:
 
