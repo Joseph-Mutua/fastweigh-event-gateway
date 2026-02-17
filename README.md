@@ -191,15 +191,6 @@ curl http://localhost:3000/health
 
 - `http://localhost:3000/admin/ui`
 
-## Redis Troubleshooting
-
-If you see `ECONNREFUSED ... 127.0.0.1:6379` or `::1:6379`, Redis is not reachable.
-
-1. Confirm `.env` `REDIS_URL` is correct.
-2. For host app, use `redis://127.0.0.1:6379`.
-3. For docker-compose app container, use `redis://redis:6379`.
-4. Validate connectivity:
-
 ```powershell
 Test-NetConnection 127.0.0.1 -Port 6379
 ```
