@@ -135,13 +135,7 @@ npm install
 cp .env.example .env
 ```
 
-PowerShell alternative:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-3. Set required values in `.env`:
+1. Set required values in `.env`:
 
 - `FAST_WEIGH_WEBHOOK_SECRET`
 - `FAST_WEIGH_API_KEY`
@@ -190,10 +184,6 @@ curl http://localhost:3000/health
 7. Open admin UI:
 
 - `http://localhost:3000/admin/ui`
-
-```powershell
-Test-NetConnection 127.0.0.1 -Port 6379
-```
 
 ## Admin Endpoints
 
