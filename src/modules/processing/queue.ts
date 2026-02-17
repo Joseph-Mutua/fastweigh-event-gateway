@@ -1,11 +1,8 @@
 import { Queue } from "bullmq";
 
 import { env } from "../../config/env.js";
-import type { FastWeighEvent } from "../../types/events.js";
-
 export type QueueJobData = {
-  event: FastWeighEvent;
-  auditId: string;
+  eventId: string;
   replayReason?: string;
 };
 

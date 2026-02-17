@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { env } from "../../config/env.js";
 import { setReconciliationDrift, trackQueueEvent, trackReconciliation } from "../../lib/metrics.js";
 import { logger } from "../../lib/logger.js";
+import { tracer } from "../../lib/tracing.js";
+import { buildCanonicalRecord, storeCanonicalEvent } from "../events/canonical-store.js";
 import { fetchChangedOrders, fetchChangedTickets } from "../graphql/client.js";
 import { eventQueue } from "../processing/queue.js";
 import {
@@ -20,25 +22,28 @@ async function replayMissingResources(
 ): Promise<number> {
   let replayed = 0;
   for (const resourceId of resourceIds) {
-    await eventQueue.add("event", {
-      event: {
-        eventId: `recon_${entity}_${resourceId}_${Date.now()}`,
-        eventType: `${entity}.reconciliation.missing`,
-        occurredAt: new Date().toISOString(),
-        tenantId,
-        resourceId,
-        payload: {
-          source: "reconciliation",
-          reason: "resource_changed_in_fast_weigh_not_seen_by_gateway",
-          entity,
-          resourceId
-        },
-        signatureVerified: true,
-        source: "reconciliation"
+    const eventId = `recon_${entity}_${resourceId}_${Date.now()}`;
+    const event = {
+      eventId,
+      eventType: `${entity}.reconciliation.missing`,
+      occurredAt: new Date().toISOString(),
+      tenantId,
+      resourceId,
+      payload: {
+        source: "reconciliation",
+        reason: "resource_changed_in_fast_weigh_not_seen_by_gateway",
+        entity,
+        resourceId
       },
-      auditId: "reconciliation",
-      replayReason: "missing-resource-detected"
-    });
+      signatureVerified: true,
+      source: "reconciliation" as const
+    };
+    await storeCanonicalEvent(
+      buildCanonicalRecord(event, "reconciliation", JSON.stringify(event), {
+        "x-source": "reconciliation"
+      })
+    );
+    await eventQueue.add("event", { eventId, replayReason: "missing-resource-detected" });
     replayed += 1;
     trackQueueEvent("reconciliation_replay");
   }
@@ -46,6 +51,7 @@ async function replayMissingResources(
 }
 
 export function startReconciliationJob(): void {
+  const reconciliationTracer = tracer("reconciliation-job");
   cron.schedule(env.RECONCILIATION_CRON, async () => {
     const startedMs = Date.now();
     const runId = uuidv4();
@@ -61,58 +67,67 @@ export function startReconciliationJob(): void {
     );
 
     try {
-      const [changedTickets, changedOrders] = await Promise.all([
-        fetchChangedTickets(since.toISOString()),
-        fetchChangedOrders(since.toISOString())
-      ]);
+      await reconciliationTracer.startActiveSpan("reconciliation.run", async (span) => {
+        try {
+          const [changedTickets, changedOrders] = await Promise.all([
+            fetchChangedTickets(since.toISOString()),
+            fetchChangedOrders(since.toISOString())
+          ]);
 
-      const ticketIds = changedTickets.map((resource) => resource.id);
-      const orderIds = changedOrders.map((resource) => resource.id);
+          const ticketIds = changedTickets.map((resource) => resource.id);
+          const orderIds = changedOrders.map((resource) => resource.id);
 
-      const [missingTickets, missingOrders] = await Promise.all([
-        missingProcessedResources("ticket", ticketIds, sinceTimestamp),
-        missingProcessedResources("order", orderIds, sinceTimestamp)
-      ]);
+          const [missingTickets, missingOrders] = await Promise.all([
+            missingProcessedResources("ticket", ticketIds, sinceTimestamp),
+            missingProcessedResources("order", orderIds, sinceTimestamp)
+          ]);
 
-      let replayedTicketCount = 0;
-      let replayedOrderCount = 0;
-      if (env.RECONCILIATION_REPLAY_MISSING_EVENTS) {
-        [replayedTicketCount, replayedOrderCount] = await Promise.all([
-          replayMissingResources("ticket", tenantId, missingTickets),
-          replayMissingResources("order", tenantId, missingOrders)
-        ]);
-      }
+          let replayedTicketCount = 0;
+          let replayedOrderCount = 0;
+          if (env.RECONCILIATION_REPLAY_MISSING_EVENTS) {
+            [replayedTicketCount, replayedOrderCount] = await Promise.all([
+              replayMissingResources("ticket", tenantId, missingTickets),
+              replayMissingResources("order", tenantId, missingOrders)
+            ]);
+          }
 
-      const driftTotal = missingTickets.length + missingOrders.length;
-      setReconciliationDrift(driftTotal);
+          const driftTotal = missingTickets.length + missingOrders.length;
+          setReconciliationDrift(driftTotal);
 
-      entityReports.push(
-        {
-          entity: "ticket",
-          changedResources: ticketIds.length,
-          missingResources: missingTickets.length,
-          replayedResources: replayedTicketCount
-        },
-        {
-          entity: "order",
-          changedResources: orderIds.length,
-          missingResources: missingOrders.length,
-          replayedResources: replayedOrderCount
+          entityReports.push(
+            {
+              entity: "ticket",
+              changedResources: ticketIds.length,
+              missingResources: missingTickets.length,
+              replayedResources: replayedTicketCount
+            },
+            {
+              entity: "order",
+              changedResources: orderIds.length,
+              missingResources: missingOrders.length,
+              replayedResources: replayedOrderCount
+            }
+          );
+
+          const report: ReconciliationReport = {
+            runId,
+            startedAt: new Date(startedMs).toISOString(),
+            finishedAt: new Date().toISOString(),
+            lookbackDays: env.RECONCILIATION_LOOKBACK_DAYS,
+            status: "success",
+            entities: entityReports,
+            errors
+          };
+          await persistReconciliationReport(report);
+          trackReconciliation("success", Date.now() - startedMs);
+          logger.info({ runId, driftTotal, entityReports }, "Reconciliation run completed");
+        } catch (error) {
+          span.recordException(error instanceof Error ? error : new Error(String(error)));
+          throw error;
+        } finally {
+          span.end();
         }
-      );
-
-      const report: ReconciliationReport = {
-        runId,
-        startedAt: new Date(startedMs).toISOString(),
-        finishedAt: new Date().toISOString(),
-        lookbackDays: env.RECONCILIATION_LOOKBACK_DAYS,
-        status: "success",
-        entities: entityReports,
-        errors
-      };
-      await persistReconciliationReport(report);
-      trackReconciliation("success", Date.now() - startedMs);
-      logger.info({ runId, driftTotal, entityReports }, "Reconciliation run completed");
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown reconciliation error";
       errors.push(message);

@@ -3,6 +3,7 @@ import { Client } from "pg";
 import { env } from "../../config/env.js";
 import type { ConnectorDeliveryResult } from "../../types/events.js";
 import type { FastWeighEvent } from "../../types/events.js";
+import type { ConnectorDeliveryContext } from "./types.js";
 import type { Connector } from "./types.js";
 
 export class PostgresWarehouseConnector implements Connector {
@@ -24,7 +25,11 @@ export class PostgresWarehouseConnector implements Connector {
     };
   }
 
-  public async deliver(payload: Record<string, unknown>): Promise<ConnectorDeliveryResult> {
+  public async deliver(
+    payload: Record<string, unknown>,
+    _context: ConnectorDeliveryContext
+  ): Promise<ConnectorDeliveryResult> {
+    void _context;
     if (!env.CONNECTOR_POSTGRES_URL) {
       throw new Error("CONNECTOR_POSTGRES_URL is required for postgres-warehouse connector.");
     }

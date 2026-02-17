@@ -4,6 +4,13 @@ The gateway exports Prometheus metrics at:
 
 - `GET /admin/metrics/prometheus`
 
+OpenTelemetry traces are enabled with environment settings:
+
+- `OTEL_ENABLED=true`
+- `OTEL_SERVICE_NAME=fast-weigh-event-gateway`
+- `OTEL_EXPORTER_OTLP_ENDPOINT=https://<collector>/v1/traces`
+- `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <token>`
+
 Key metrics:
 
 - `fastweigh_gateway_webhook_requests_total`

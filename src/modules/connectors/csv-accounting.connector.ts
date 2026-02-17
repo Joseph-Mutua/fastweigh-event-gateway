@@ -4,6 +4,7 @@ import path from "node:path";
 import { env } from "../../config/env.js";
 import type { ConnectorDeliveryResult } from "../../types/events.js";
 import type { FastWeighEvent } from "../../types/events.js";
+import type { ConnectorDeliveryContext } from "./types.js";
 import type { Connector } from "./types.js";
 
 const headers = ["event_id", "event_type", "occurred_at", "tenant_id", "resource_id"];
@@ -44,7 +45,11 @@ export class CsvAccountingConnector implements Connector {
     };
   }
 
-  public async deliver(payload: Record<string, unknown>): Promise<ConnectorDeliveryResult> {
+  public async deliver(
+    payload: Record<string, unknown>,
+    _context: ConnectorDeliveryContext
+  ): Promise<ConnectorDeliveryResult> {
+    void _context;
     await ensureCsvFile(env.CONNECTOR_CSV_PATH);
     const row = headers
       .map((header) => {

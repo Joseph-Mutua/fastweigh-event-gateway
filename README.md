@@ -2,7 +2,7 @@
 
 A production-grade webhook event gateway for Fast-Weigh that verifies Svix signatures, guarantees delivery (idempotency + retries + Dead Letter Queue), enriches events via GraphQL V2, and routes data to downstream systems like ERP, TMS, accounting, and BI.
 
-## Why I built This
+## Why This Exists
 
 Fast-Weigh webhooks are the fastest path to real-time integrations, but production webhook consumption is difficult:
 
@@ -22,20 +22,18 @@ This gateway provides a deployable, standardized integration pattern focused on 
 - GraphQL V2 enrichment (Bearer token API key auth)
 - Connector framework for HTTP/database/file sinks
 - Admin API + embedded React admin console (`/admin/ui`)
-- Structured logging + Prometheus metrics
+- Structured logging + Prometheus metrics + OpenTelemetry traces
 - Security controls: rate limiting, IP allowlists, admin API key, TLS guidance
 
 ## Implementation Status Against Original Notes
 
-- Implemented:
-  - signature verification, idempotency, queueing, retry/DLQ/replay
-  - GraphQL enrichment layer and reconciliation drift/replay workflow
-  - connector framework with 3 reference connectors
-  - admin API + admin UI + Prometheus endpoint
-  - Docker packaging and Terraform starter templates
-- Partial:
-  - distributed tracing is trace-ready but full OpenTelemetry pipeline/export is not wired yet
-  - connector-level idempotency guarantees are strong for `postgres-warehouse` and HTTP key propagation, but CSV sink is append-only by design
+Implemented:
+
+- signature verification, idempotency, queueing, retry/DLQ/replay
+- GraphQL enrichment layer and reconciliation drift/replay workflow
+- connector framework with connector-level idempotency handling
+- admin API + admin UI + Prometheus + OpenTelemetry tracing
+- Docker packaging and Terraform starter templates
 
 ## Architecture
 
@@ -76,9 +74,10 @@ sequenceDiagram
   SV->>IN: POST /webhooks/fastweigh (signed payload)
   IN->>IN: Verify signature + normalize event
   IN->>EV: Store raw event + metadata
-  IN->>Q: Enqueue event
-  WK->>Q: Dequeue event
-  WK->>WK: Idempotency gate check
+  IN->>Q: Enqueue eventId
+  WK->>Q: Dequeue eventId
+  WK->>EV: Fetch event payload + metadata
+  WK->>WK: Idempotency gate check (eventId)
   WK->>GQL: Query latest state (Bearer token)
   GQL-->>WK: Enriched resource data
   WK->>CN: Deliver transformed payload

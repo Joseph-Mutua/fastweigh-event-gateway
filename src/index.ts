@@ -1,10 +1,13 @@
 import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { redis } from "./lib/redis.js";
+import { startTracing, stopTracing } from "./lib/tracing.js";
 import { deadLetterQueue, eventQueue } from "./modules/processing/queue.js";
 import { startReconciliationJob } from "./modules/reconciliation/job.js";
 import { eventWorker, queueEvents } from "./modules/processing/worker.js";
 import { createApp } from "./app.js";
+
+await startTracing();
 
 const app = createApp();
 
@@ -22,6 +25,7 @@ async function shutdown(): Promise<void> {
     eventQueue.close(),
     deadLetterQueue.close()
   ]);
+  await stopTracing();
   await redis.quit();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {

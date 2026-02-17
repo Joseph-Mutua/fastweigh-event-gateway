@@ -8,6 +8,7 @@ import {
   trackQueueEvent
 } from "../../lib/metrics.js";
 import { enabledConnectors } from "../connectors/registry.js";
+import { getCanonicalEvent } from "../events/canonical-store.js";
 import { deadLetterQueue, eventQueue } from "../processing/queue.js";
 import {
   getLatestReconciliationReport,
@@ -89,20 +90,23 @@ export function createAdminRouter(): Router {
     const jobs = await deadLetterQueue.getJobs(["waiting", "delayed"]);
     let replayed = 0;
     for (const job of jobs) {
+      const canonical = await getCanonicalEvent(job.data.eventId);
       await eventQueue.add("event", {
         ...job.data,
         replayReason: "dlq-replay"
       });
-      await recordEvent({
-        timestamp: new Date().toISOString(),
-        status: "replayed",
-        eventId: job.data.event.eventId,
-        eventType: job.data.event.eventType,
-        tenantId: job.data.event.tenantId,
-        resourceId: job.data.event.resourceId,
-        auditId: job.data.auditId,
-        detail: "Replay requested from DLQ."
-      });
+      if (canonical) {
+        await recordEvent({
+          timestamp: new Date().toISOString(),
+          status: "replayed",
+          eventId: canonical.event.eventId,
+          eventType: canonical.event.eventType,
+          tenantId: canonical.event.tenantId,
+          resourceId: canonical.event.resourceId,
+          auditId: canonical.auditId,
+          detail: "Replay requested from DLQ."
+        });
+      }
       await job.remove();
       replayed += 1;
       trackQueueEvent("dlq_replay");

@@ -54,6 +54,13 @@ const envSchema = z.object({
     .string()
     .default("true")
     .transform(parseBoolean),
+  OTEL_ENABLED: z
+    .string()
+    .default("true")
+    .transform(parseBoolean),
+  OTEL_SERVICE_NAME: z.string().default("fast-weigh-event-gateway"),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.preprocess(emptyStringToUndefined, z.url().optional()),
+  OTEL_EXPORTER_OTLP_HEADERS: z.string().default(""),
   WEBHOOK_IP_ALLOWLIST: z.string().default(""),
   ADMIN_IP_ALLOWLIST: z.string().default(""),
   ADMIN_API_KEY: z.preprocess(emptyStringToUndefined, z.string().min(8).optional())

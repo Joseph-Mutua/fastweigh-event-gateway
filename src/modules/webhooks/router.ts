@@ -4,8 +4,9 @@ import express from "express";
 import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
 import { trackQueueEvent, trackWebhook } from "../../lib/metrics.js";
+import { tracer } from "../../lib/tracing.js";
 import { writeRawAudit } from "../audit/audit-store.js";
-import { claimEvent } from "../idempotency/store.js";
+import { buildCanonicalRecord, storeCanonicalEvent } from "../events/canonical-store.js";
 import { eventQueue } from "../processing/queue.js";
 import { recordEvent } from "../tracking/event-store.js";
 import { normalizeEvent } from "./normalize-event.js";
@@ -21,13 +22,15 @@ function requiredHeader(request: Request, key: string): string {
 
 export function createWebhookRouter(): Router {
   const router = express.Router();
+  const webhookTracer = tracer("webhooks-router");
 
   router.post(
     "/",
     express.raw({ type: "application/json", limit: env.MAX_WEBHOOK_BODY_BYTES }),
     async (request: Request, response: Response) => {
     const startedAtMs = Date.now();
-    try {
+    await webhookTracer.startActiveSpan("webhook.ingest", async (span) => {
+      try {
       const rawBodyBuffer = request.body as Buffer;
       const rawBody = rawBodyBuffer.toString("utf8");
       const svixHeaders = {
@@ -38,25 +41,10 @@ export function createWebhookRouter(): Router {
 
       const verifiedPayload = verifySvixSignature(rawBody, svixHeaders);
       const event = normalizeEvent(verifiedPayload);
-      const isNewEvent = await claimEvent(event.eventId, event.resourceId, event.resourceVersion);
-
-      if (!isNewEvent) {
-        trackWebhook("duplicate", Date.now() - startedAtMs);
-        await recordEvent({
-          timestamp: new Date().toISOString(),
-          status: "duplicate",
-          eventId: event.eventId,
-          eventType: event.eventType,
-          tenantId: event.tenantId,
-          resourceId: event.resourceId,
-          detail: "Duplicate webhook ignored."
-        });
-        response.status(200).json({ accepted: true, duplicate: true, eventId: event.eventId });
-        return;
-      }
 
       const auditId = await writeRawAudit(rawBody, svixHeaders);
-      await eventQueue.add("event", { event, auditId });
+      await storeCanonicalEvent(buildCanonicalRecord(event, auditId, rawBody, svixHeaders));
+      await eventQueue.add("event", { eventId: event.eventId });
       trackWebhook("accepted", Date.now() - startedAtMs);
       trackQueueEvent("enqueued");
       await recordEvent({
@@ -69,14 +57,18 @@ export function createWebhookRouter(): Router {
         auditId
       });
       response.status(202).json({ accepted: true, eventId: event.eventId, auditId });
-    } catch (error) {
-      logger.error({ err: error }, "Webhook handling failed");
-      trackWebhook("rejected", Date.now() - startedAtMs);
-      response.status(400).json({
-        accepted: false,
-        error: error instanceof Error ? error.message : "Webhook verification failed"
-      });
-    }
+      } catch (error) {
+        span.recordException(error instanceof Error ? error : new Error(String(error)));
+        logger.error({ err: error }, "Webhook handling failed");
+        trackWebhook("rejected", Date.now() - startedAtMs);
+        response.status(400).json({
+          accepted: false,
+          error: error instanceof Error ? error.message : "Webhook verification failed"
+        });
+      } finally {
+        span.end();
+      }
+    });
   });
 
   return router;
