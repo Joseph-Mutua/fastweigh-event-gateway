@@ -89,6 +89,10 @@ sequenceDiagram
   end
 ```
 
+### Admin UI Preview
+
+![Fast-Weigh Event Gateway Admin UI](assets/Fast-Weigh%20Event%20Gateway%20Admin.png)
+
 ## Supported Starter Use Cases
 
 - Ticket created/updated -> ERP and invoicing sync
