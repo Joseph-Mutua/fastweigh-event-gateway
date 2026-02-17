@@ -1,0 +1,19 @@
+{
+  "id": "evt_01J2D22EJ5VJ7GQ4ZQXYYZ6M7A",
+  "type": "ticket.updated",
+  "createdAt": "2026-02-17T16:02:09.000Z",
+  "tenantId": "tenant_demo_001",
+  "resourceId": "ticket_100234",
+  "data": {
+    "id": "ticket_100234",
+    "ticketNumber": "T-100234",
+    "status": "ADJUSTED",
+    "orderId": "order_9981",
+    "customerID": 321,
+    "grossWeight": 80310,
+    "tareWeight": 31200,
+    "netWeight": 49110,
+    "adjustmentReason": "Scale correction",
+    "updatedAt": "2026-02-17T16:01:58.000Z"
+  }
+}

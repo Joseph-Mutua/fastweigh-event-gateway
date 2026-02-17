@@ -1,0 +1,32 @@
+aws_region         = "us-east-1"
+name_prefix        = "fastweigh-gateway"
+vpc_id             = "vpc-xxxxxxxx"
+public_subnet_ids  = ["subnet-public-a", "subnet-public-b"]
+private_subnet_ids = ["subnet-private-a", "subnet-private-b"]
+container_image    = "123456789012.dkr.ecr.us-east-1.amazonaws.com/fastweigh-gateway:latest"
+container_port     = 3000
+desired_count      = 2
+task_cpu           = 512
+task_memory        = 1024
+certificate_arn    = ""
+
+environment = {
+  NODE_ENV                  = "production"
+  PORT                      = "3000"
+  LOG_LEVEL                 = "info"
+  REDIS_URL                 = "redis://redis.internal:6379"
+  QUEUE_NAME                = "fastweigh-events"
+  WEBHOOK_ROUTE             = "/webhooks/fastweigh"
+  MAX_RETRY_ATTEMPTS        = "5"
+  RETRY_BACKOFF_MS          = "5000"
+  ENRICHMENT_ENABLED        = "true"
+  RECONCILIATION_CRON       = "0 2 * * *"
+  RECONCILIATION_LOOKBACK_DAYS = "1"
+  METRICS_ENABLED           = "true"
+}
+
+secrets = {
+  FAST_WEIGH_WEBHOOK_SECRET = "arn:aws:secretsmanager:us-east-1:123456789012:secret:fw-webhook-secret"
+  FAST_WEIGH_API_KEY        = "arn:aws:secretsmanager:us-east-1:123456789012:secret:fw-api-key"
+  ADMIN_API_KEY             = "arn:aws:secretsmanager:us-east-1:123456789012:secret:fw-admin-api-key"
+}

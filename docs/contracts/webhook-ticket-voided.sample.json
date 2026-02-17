@@ -1,0 +1,17 @@
+{
+  "id": "evt_01J2D24X5Q4JAAW31E60P5VA7G",
+  "type": "ticket.voided",
+  "createdAt": "2026-02-17T16:41:54.000Z",
+  "tenantId": "tenant_demo_001",
+  "resourceId": "ticket_100198",
+  "data": {
+    "id": "ticket_100198",
+    "ticketNumber": "T-100198",
+    "status": "VOIDED",
+    "orderId": "order_9920",
+    "customerID": 202,
+    "voidReason": "Duplicate entry",
+    "voidedBy": "dispatcher_17",
+    "voidedAt": "2026-02-17T16:41:10.000Z"
+  }
+}

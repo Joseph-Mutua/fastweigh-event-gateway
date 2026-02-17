@@ -1,0 +1,68 @@
+{
+  "title": "Fast-Weigh Event Gateway",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Webhook Requests",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(fastweigh_gateway_webhook_requests_total[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Webhook P95 Latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fastweigh_gateway_webhook_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "title": "Worker Duration P95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fastweigh_gateway_worker_job_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "title": "Connector Delivery Outcomes",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (connector,status) (rate(fastweigh_gateway_connector_deliveries_total[5m]))",
+          "legendFormat": "{{connector}} {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Queue Depth",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "fastweigh_gateway_queue_depth",
+          "legendFormat": "{{state}}"
+        }
+      ]
+    },
+    {
+      "title": "Reconciliation Drift",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "fastweigh_gateway_reconciliation_drift_resources"
+        }
+      ]
+    }
+  ]
+}

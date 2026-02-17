@@ -1,0 +1,45 @@
+# Fast-Weigh GraphQL V2 Public Baseline
+# Source-aligned from publicly documented examples only.
+# Replace/extend with tenant-specific schema once introspection access is available.
+
+query CustomersBaseline {
+  customers {
+    customerID
+    customerName
+    contactName
+    contactPhone
+  }
+}
+
+# Generic probe query pattern used by this gateway's reconciliation logic.
+# Field and argument names here are assumptions and may differ by tenant schema.
+query ReconciliationProbe($since: DateTime!) {
+  tickets(updatedSince: $since) {
+    id
+    updatedAt
+  }
+  orders(updatedSince: $since) {
+    id
+    updatedAt
+  }
+}
+
+# Generic enrichment query for ticket events.
+# Keep this as a placeholder until actual tenant schema is confirmed.
+query TicketByIdBaseline($id: ID!) {
+  ticket(id: $id) {
+    id
+    status
+    createdAt
+    updatedAt
+  }
+}
+
+# Generic enrichment query for order events.
+query OrderByIdBaseline($id: ID!) {
+  order(id: $id) {
+    id
+    status
+    updatedAt
+  }
+}

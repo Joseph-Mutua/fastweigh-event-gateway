@@ -1,0 +1,18 @@
+{
+  "id": "evt_01J2D20BGSG3M0S92YB8FKX3B3",
+  "type": "ticket.created",
+  "createdAt": "2026-02-17T15:20:31.000Z",
+  "tenantId": "tenant_demo_001",
+  "resourceId": "ticket_100234",
+  "data": {
+    "id": "ticket_100234",
+    "ticketNumber": "T-100234",
+    "status": "COMPLETED",
+    "orderId": "order_9981",
+    "customerID": 321,
+    "grossWeight": 80240,
+    "tareWeight": 31200,
+    "netWeight": 49040,
+    "deliveredAt": "2026-02-17T15:19:44.000Z"
+  }
+}
